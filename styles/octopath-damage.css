@@ -18,22 +18,22 @@
 @keyframes fu-octo-label-pop {
   0% {
     opacity: 0;
-    transform: translate(0, 10px) scale(0.6);
+    transform: translate(0, -6px) scale(0.6);
   }
-  16% {
+  12% {
     opacity: 1;
-    transform: translate(0, -4px) scale(1.16);
+    transform: translate(0, -28px) scale(1.16);
   }
-  28% {
-    transform: translate(0, 0) scale(1);
+  24% {
+    transform: translate(0, -22px) scale(1);
   }
-  78% {
+  82% {
     opacity: 1;
-    transform: translate(0, -4px) scale(1);
+    transform: translate(0, -25px) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translate(0, -22px) scale(0.95);
+    transform: translate(0, -44px) scale(0.95);
   }
 }
 
@@ -42,9 +42,9 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-bottom: -6px;
+  margin-bottom: 6px;
   z-index: 3;
-  animation: fu-octo-label-pop 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: fu-octo-label-pop 2.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .fu-octo-dmg-label {
@@ -66,7 +66,7 @@
     opacity: 0;
     transform: scale(0.2) rotate(0deg);
   }
-  20% {
+  16% {
     opacity: 1;
     transform: scale(1.5) rotate(45deg);
   }
@@ -86,40 +86,40 @@
   text-shadow:
     0 0 8px #fde047,
     0 0 18px #f97316;
-  animation: fu-octo-sparkle-flash 0.9s ease-out forwards;
+  animation: fu-octo-sparkle-flash 1.1s ease-out forwards;
 }
 
 /* =========================================
-   NÚMEROS EM ONDA (STAGGER WAVE)
+   NÚMEROS + ÍCONE ELEMENTAL EM ONDA
    ========================================= */
 @keyframes fu-octo-digit-wave {
   0% {
     opacity: 0;
     transform: translateY(18px) scale(0.45);
   }
-  16% {
+  12% {
     opacity: 1;
-    transform: translateY(-24px) scale(1.24);
+    transform: translateY(-22px) scale(1.22);
   }
-  32% {
+  24% {
     transform: translateY(-8px) scale(0.96);
   }
-  48% {
+  36% {
     transform: translateY(-16px) scale(1.04);
   }
-  78% {
+  82% {
     opacity: 1;
-    transform: translateY(-20px) scale(1);
+    transform: translateY(-19px) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translateY(-42px) scale(0.92);
+    transform: translateY(-40px) scale(0.92);
   }
 }
 
 .fu-octo-dmg-digits {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   padding-left: 6px;
 }
 
@@ -131,7 +131,7 @@
   line-height: 1;
   letter-spacing: -1px;
   opacity: 0;
-  animation: fu-octo-digit-wave 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: fu-octo-digit-wave 2.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   animation-delay: calc(var(--char-idx, 0) * 65ms);
 }
 
@@ -155,16 +155,40 @@
   -webkit-text-fill-color: transparent;
 }
 
+/* Ícone Elemental à direita do número */
+.fu-octo-dmg-elem-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  opacity: 0;
+  animation: fu-octo-digit-wave 2.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--char-idx, 0) * 65ms);
+}
+
+.fu-octo-dmg-elem-icon {
+  display: inline-block;
+  width: 36px !important;
+  height: 36px !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  filter:
+    drop-shadow(0 0 2px #090b10)
+    drop-shadow(0 0 2px #090b10)
+    drop-shadow(0 4px 8px rgba(0, 0, 0, 0.95));
+}
+
 /* =========================================
-   PALETAS DE CORES POR TIPO DE RESULTADO
+   CORES PADRÃO (DANO FÍSICO / VULNERÁVEL)
    ========================================= */
 
-/* 1. DANO NORMAL / RESISTENTE (Vermelho) */
+/* 1. DANO FÍSICO NORMAL / RESISTENTE (Vermelho) */
 .fu-octo-dmg-damage .fu-octo-dmg-fill {
   background-image: linear-gradient(180deg, #ffffff 0%, #fca5a5 32%, #ef4444 70%, #b91c1c 100%);
 }
 
-/* 2. VULNERÁVEL / FRACO (Vermelho vivo + FRACO dourado-avermelhado) */
+/* 2. VULNERÁVEL / FRACO (Rótulo dourado + números vermelhos se for físico) */
 .fu-octo-dmg-weak .fu-octo-dmg-label {
   color: #fde047;
   text-shadow:
@@ -178,6 +202,54 @@
 .fu-octo-dmg-weak .fu-octo-dmg-fill {
   background-image: linear-gradient(180deg, #fffbeb 0%, #fda4af 30%, #f43f5e 68%, #be123c 100%);
 }
+
+/* =========================================
+   PALETAS DOS 8 ELEMENTOS DE FABULA ULTIMA
+   ========================================= */
+
+/* AR (Verde-lima brilhante) */
+.fu-octo-elem-air .fu-octo-dmg-fill {
+  background-image: linear-gradient(180deg, #ffffff 0%, #d9f99d 32%, #84cc16 70%, #4d7c0f 100%);
+}
+
+/* RAIO (Amarelo elétrico) */
+.fu-octo-elem-bolt .fu-octo-dmg-fill {
+  background-image: linear-gradient(180deg, #ffffff 0%, #fef08a 32%, #facc15 70%, #ca8a04 100%);
+}
+
+/* TREVAS (Roxo sombrio) */
+.fu-octo-elem-dark .fu-octo-dmg-fill {
+  background-image: linear-gradient(180deg, #f3e8ff 0%, #d8b4fe 32%, #9333ea 70%, #581c87 100%);
+}
+
+/* TERRA (Âmbar / Marrom terroso) */
+.fu-octo-elem-earth .fu-octo-dmg-fill {
+  background-image: linear-gradient(180deg, #ffedd5 0%, #fdba74 32%, #d97706 70%, #78350f 100%);
+}
+
+/* FOGO (Laranja flamejante) */
+.fu-octo-elem-fire .fu-octo-dmg-fill {
+  background-image: linear-gradient(180deg, #fff7ed 0%, #fed7aa 30%, #f97316 68%, #c2410c 100%);
+}
+
+/* GELO (Azul glacial) */
+.fu-octo-elem-ice .fu-octo-dmg-fill {
+  background-image: linear-gradient(180deg, #ffffff 0%, #bae6fd 32%, #38bdf8 70%, #0369a1 100%);
+}
+
+/* LUZ (Branco-dourado radiante) */
+.fu-octo-elem-light .fu-octo-dmg-fill {
+  background-image: linear-gradient(180deg, #ffffff 0%, #fef9c3 36%, #fde047 72%, #b45309 100%);
+}
+
+/* VENENO (Magenta / Roxo tóxico) */
+.fu-octo-elem-poison .fu-octo-dmg-fill {
+  background-image: linear-gradient(180deg, #fdf4ff 0%, #f5d0fe 32%, #d946ef 70%, #86198f 100%);
+}
+
+/* =========================================
+   IMUNE E ABSORÇÃO (Prioridade sobre cor elemental)
+   ========================================= */
 
 /* 3. IMUNE (Azul: 000 + IMUNE) */
 .fu-octo-dmg-immune .fu-octo-dmg-label {
