@@ -90,6 +90,74 @@
 }
 
 /* =========================================
+   BRILHOS FLUTUANTES DE CURA / ABSORÇÃO
+   ========================================= */
+@keyframes fu-octo-heal-glitter {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.3) rotate(0deg);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-6px) scale(1.25) rotate(35deg);
+  }
+  65% {
+    opacity: 0.95;
+    transform: translateY(-28px) scale(0.95) rotate(80deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-48px) scale(0.4) rotate(130deg);
+  }
+}
+
+.fu-octo-heal-sparkles {
+  position: absolute;
+  inset: -16px -14px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.fu-octo-hsparkle {
+  position: absolute;
+  color: #ecfdf5;
+  text-shadow:
+    0 0 6px #4ade80,
+    0 0 14px #22c55e,
+    0 0 22px #bbf7d0;
+  opacity: 0;
+  animation: fu-octo-heal-glitter 1.85s ease-out forwards;
+}
+
+.fu-octo-hsparkle.s1 {
+  left: 4px;
+  top: 2px;
+  font-size: 18px;
+  animation-delay: 0.05s;
+}
+
+.fu-octo-hsparkle.s2 {
+  right: 8px;
+  top: -6px;
+  font-size: 15px;
+  animation-delay: 0.18s;
+}
+
+.fu-octo-hsparkle.s3 {
+  left: 42%;
+  bottom: 4px;
+  font-size: 20px;
+  animation-delay: 0.28s;
+}
+
+.fu-octo-hsparkle.s4 {
+  right: -4px;
+  bottom: 12px;
+  font-size: 14px;
+  animation-delay: 0.4s;
+}
+
+/* =========================================
    NÚMEROS + ÍCONE ELEMENTAL EM ONDA
    ========================================= */
 @keyframes fu-octo-digit-wave {
@@ -118,6 +186,7 @@
 }
 
 .fu-octo-dmg-digits {
+  position: relative;
   display: flex;
   align-items: center;
   padding-left: 6px;
@@ -133,6 +202,10 @@
   opacity: 0;
   animation: fu-octo-digit-wave 2.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   animation-delay: calc(var(--char-idx, 0) * 65ms);
+}
+
+.fu-octo-dmg-sign {
+  margin-right: 2px;
 }
 
 /* Camada 1 (Fundo): Contorno preto espesso + sombra projetada */
@@ -248,7 +321,7 @@
 }
 
 /* =========================================
-   IMUNE E ABSORÇÃO (Prioridade sobre cor elemental)
+   IMUNE, ABSORÇÃO E CURA DE PV
    ========================================= */
 
 /* 3. IMUNE (Azul: 000 + IMUNE) */
@@ -266,7 +339,7 @@
   background-image: linear-gradient(180deg, #ffffff 0%, #bae6fd 32%, #38bdf8 70%, #0284c7 100%);
 }
 
-/* 4. ABSORÇÃO (Verde: +XYZ + ABSORÇÃO) */
+/* 4. ABSORÇÃO E CURA DE PV (Verde vibrante + brilho) */
 .fu-octo-dmg-absorb .fu-octo-dmg-label {
   color: #86efac;
   text-shadow:
@@ -277,6 +350,11 @@
      0 0 12px rgba(34, 197, 94, 0.95);
 }
 
-.fu-octo-dmg-absorb .fu-octo-dmg-fill {
-  background-image: linear-gradient(180deg, #ffffff 0%, #bbf7d0 32%, #4ade80 70%, #16a34a 100%);
+.fu-octo-dmg-absorb .fu-octo-dmg-fill,
+.fu-octo-dmg-heal .fu-octo-dmg-fill {
+  background-image: linear-gradient(180deg, #ffffff 0%, #bbf7d0 30%, #4ade80 68%, #16a34a 100%);
+}
+
+.fu-octo-dmg-heal .fu-octo-dmg-digits {
+  filter: drop-shadow(0 0 10px rgba(74, 222, 128, 0.65));
 }
