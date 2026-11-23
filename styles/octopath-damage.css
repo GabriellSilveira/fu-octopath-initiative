@@ -1,0 +1,204 @@
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&display=swap");
+
+.fu-octo-dmg-popup {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  z-index: 80;
+  pointer-events: none;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-family: "Cinzel", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+}
+
+/* =========================================
+   TEXTO SUPERIOR (FRACO / IMUNE / ABSORÇÃO)
+   ========================================= */
+@keyframes fu-octo-label-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-10px, 8px) scale(0.6);
+  }
+  16% {
+    opacity: 1;
+    transform: translate(-10px, -6px) scale(1.15);
+  }
+  28% {
+    transform: translate(-10px, -3px) scale(1);
+  }
+  78% {
+    opacity: 1;
+    transform: translate(-10px, -7px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-10px, -22px) scale(0.95);
+  }
+}
+
+.fu-octo-dmg-label-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: -6px;
+  animation: fu-octo-label-pop 1.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.fu-octo-dmg-label {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-shadow:
+    -1.5px -1.5px 0 #090b10,
+     1.5px -1.5px 0 #090b10,
+    -1.5px  1.5px 0 #090b10,
+     1.5px  1.5px 0 #090b10,
+     0 3px 6px rgba(0, 0, 0, 0.9);
+}
+
+/* Estrela de impacto estelar para FRACO */
+@keyframes fu-octo-sparkle-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1.45) rotate(45deg);
+  }
+  55% {
+    opacity: 0.85;
+    transform: scale(0.95) rotate(90deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.4) rotate(135deg);
+  }
+}
+
+.fu-octo-dmg-sparkle {
+  font-size: 20px;
+  color: #fffbeb;
+  text-shadow:
+    0 0 8px #fde047,
+    0 0 16px #f97316;
+  margin-right: 2px;
+  animation: fu-octo-sparkle-flash 0.85s ease-out forwards;
+}
+
+/* =========================================
+   NÚMEROS EM ONDA (STAGGER WAVE)
+   ========================================= */
+@keyframes fu-octo-digit-wave {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.45);
+  }
+  16% {
+    opacity: 1;
+    transform: translateY(-22px) scale(1.26);
+  }
+  32% {
+    transform: translateY(-7px) scale(0.96);
+  }
+  48% {
+    transform: translateY(-15px) scale(1.04);
+  }
+  78% {
+    opacity: 1;
+    transform: translateY(-18px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-38px) scale(0.92);
+  }
+}
+
+.fu-octo-dmg-digits {
+  display: flex;
+  align-items: baseline;
+  padding-left: 8px;
+}
+
+.fu-octo-dmg-char {
+  position: relative;
+  display: inline-block;
+  font-size: 38px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -1px;
+  opacity: 0;
+  animation: fu-octo-digit-wave 1.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--char-idx, 0) * 65ms);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Camada traseira de contorno escuro + sombra sem cortar o gradiente */
+.fu-octo-dmg-char::before {
+  content: attr(data-char);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  -webkit-text-fill-color: #090b10;
+  -webkit-text-stroke: 4px #090b10;
+  text-shadow: 0 4px 10px rgba(0, 0, 0, 0.95);
+}
+
+/* =========================================
+   PALETAS DE CORES POR TIPO DE RESULTADO
+   ========================================= */
+
+/* 1. DANO NORMAL / RESISTENTE (Vermelho) */
+.fu-octo-dmg-damage .fu-octo-dmg-char {
+  background-image: linear-gradient(180deg, #ffffff 0%, #fca5a5 38%, #ef4444 75%, #991b1b 100%);
+}
+
+/* 2. VULNERÁVEL / FRACO (Vermelho vivo + FRACO dourado-avermelhado) */
+.fu-octo-dmg-weak .fu-octo-dmg-label {
+  color: #fde047;
+  text-shadow:
+    -1.5px -1.5px 0 #7f1d1d,
+     1.5px -1.5px 0 #7f1d1d,
+    -1.5px  1.5px 0 #7f1d1d,
+     1.5px  1.5px 0 #7f1d1d,
+     0 0 10px rgba(239, 68, 68, 0.95);
+}
+
+.fu-octo-dmg-weak .fu-octo-dmg-char {
+  background-image: linear-gradient(180deg, #fffbeb 0%, #fda4af 35%, #f43f5e 72%, #9f1239 100%);
+}
+
+/* 3. IMUNE (Azul: 000 + IMUNE) */
+.fu-octo-dmg-immune .fu-octo-dmg-label {
+  color: #7dd3fc;
+  text-shadow:
+    -1.5px -1.5px 0 #0c4a6e,
+     1.5px -1.5px 0 #0c4a6e,
+    -1.5px  1.5px 0 #0c4a6e,
+     1.5px  1.5px 0 #0c4a6e,
+     0 0 10px rgba(56, 189, 248, 0.9);
+}
+
+.fu-octo-dmg-immune .fu-octo-dmg-char {
+  background-image: linear-gradient(180deg, #ffffff 0%, #bae6fd 38%, #38bdf8 75%, #0369a1 100%);
+}
+
+/* 4. ABSORÇÃO (Verde: +XYZ + ABSORÇÃO) */
+.fu-octo-dmg-absorb .fu-octo-dmg-label {
+  color: #86efac;
+  text-shadow:
+    -1.5px -1.5px 0 #064e3b,
+     1.5px -1.5px 0 #064e3b,
+    -1.5px  1.5px 0 #064e3b,
+     1.5px  1.5px 0 #064e3b,
+     0 0 10px rgba(34, 197, 94, 0.9);
+}
+
+.fu-octo-dmg-absorb .fu-octo-dmg-char {
+  background-image: linear-gradient(180deg, #ffffff 0%, #bbf7d0 38%, #4ade80 75%, #15803d 100%);
+}
