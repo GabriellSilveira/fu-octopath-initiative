@@ -114,7 +114,10 @@ class FUOctopathInitiative {
 
       const currentRoundQueue = [];
       for (const c of combatants) {
-        const rem = this.getRemainingTurns(combat, c);
+        let rem = this.getRemainingTurns(combat, c);
+        if (actingCombatant && c.id === actingCombatant.id) {
+          rem = Math.max(0, rem - 1);
+        }
         for (let i = 0; i < rem; i++) {
           currentRoundQueue.push(c);
         }
