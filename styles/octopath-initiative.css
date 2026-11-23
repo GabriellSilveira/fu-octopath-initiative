@@ -1,3 +1,18 @@
+@property --fu-neon-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes fu-neon-orbit {
+  from {
+    --fu-neon-angle: 0deg;
+  }
+  to {
+    --fu-neon-angle: 360deg;
+  }
+}
+
 #fu-octopath-hud {
   position: fixed;
   top: 66px;
@@ -25,7 +40,7 @@
 }
 
 /* =========================================
-   LOSANGO PRINCIPAL (TURNO ATIVO)
+   LOSANGO PRINCIPAL + NEON ANIMADO CIRCULANDO
    ========================================= */
 .fu-octo-hero {
   position: relative;
@@ -33,10 +48,8 @@
   height: 62px;
   transform: rotate(45deg);
   background: #0d1219;
-  border: 2.5px solid #38bdf8;
-  box-shadow:
-    0 0 18px rgba(14, 165, 233, 0.85),
-    inset 0 0 12px rgba(56, 189, 248, 0.55);
+  border: 2px solid rgba(56, 189, 248, 0.55);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.85);
   z-index: 4;
   pointer-events: auto;
   cursor: pointer;
@@ -44,28 +57,98 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.fu-octo-hero.fu-octo-enemy {
+  border-color: rgba(248, 113, 113, 0.55);
+}
+
 .fu-octo-hero:hover {
   transform: rotate(45deg) scale(1.06);
 }
 
-.fu-octo-hero.fu-octo-enemy {
-  border-color: #f87171;
-  box-shadow:
-    0 0 18px rgba(220, 38, 38, 0.85),
-    inset 0 0 12px rgba(248, 113, 113, 0.55);
+/* Camadas de feixe neon orbitando ao redor do losango em evidência */
+.fu-octo-hero.fu-octo-is-acting {
+  border-color: transparent;
 }
 
-/* Animação de troca de iniciativa */
+.fu-octo-hero.fu-octo-is-acting::before,
+.fu-octo-hero.fu-octo-is-acting::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  animation: fu-neon-orbit 2s linear infinite;
+}
+
+/* Borda neon nítida circulando */
+.fu-octo-hero.fu-octo-is-acting::before {
+  inset: -2.5px;
+  z-index: 1;
+}
+
+/* Aura externa difusa circulando */
+.fu-octo-hero.fu-octo-is-acting::after {
+  inset: -6px;
+  z-index: 0;
+  filter: blur(8px);
+  opacity: 0.95;
+}
+
+/* Neon Azul (Aliado jogando) */
+.fu-octo-hero.fu-octo-ally.fu-octo-is-acting::before,
+.fu-octo-hero.fu-octo-ally.fu-octo-is-acting::after {
+  background: conic-gradient(
+    from var(--fu-neon-angle),
+    rgba(2, 132, 199, 0.15) 0%,
+    rgba(14, 165, 233, 0.35) 45%,
+    #0284c7 68%,
+    #38bdf8 86%,
+    #e0f2fe 95%,
+    #38bdf8 100%
+  );
+}
+
+.fu-octo-hero.fu-octo-ally.fu-octo-is-acting {
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.55);
+}
+
+/* Neon Vermelho (Inimigo jogando) */
+.fu-octo-hero.fu-octo-enemy.fu-octo-is-acting::before,
+.fu-octo-hero.fu-octo-enemy.fu-octo-is-acting::after {
+  background: conic-gradient(
+    from var(--fu-neon-angle),
+    rgba(185, 28, 28, 0.15) 0%,
+    rgba(239, 68, 68, 0.35) 45%,
+    #dc2626 68%,
+    #f87171 86%,
+    #fee2e2 95%,
+    #f87171 100%
+  );
+}
+
+.fu-octo-hero.fu-octo-enemy.fu-octo-is-acting {
+  box-shadow: 0 0 18px rgba(248, 113, 113, 0.55);
+}
+
+/* Moldura interna do retrato dentro do losango principal */
+.fu-octo-hero .fu-octo-portrait-wrap {
+  position: absolute;
+  inset: 2px;
+  width: auto;
+  height: auto;
+  background: #0d1219;
+  z-index: 2;
+}
+
+/* Animação de entrada ao trocar de iniciativa */
 @keyframes fu-octo-hero-burst {
   0% {
-    opacity: 0.2;
-    transform: translateX(34px) rotate(45deg) scale(0.65);
-    filter: brightness(2.2);
+    opacity: 0.25;
+    transform: translateX(34px) rotate(45deg) scale(0.68);
+    filter: brightness(2);
   }
   60% {
     opacity: 1;
-    transform: translateX(-3px) rotate(45deg) scale(1.07);
-    filter: brightness(1.3);
+    transform: translateX(-3px) rotate(45deg) scale(1.06);
+    filter: brightness(1.25);
   }
   100% {
     opacity: 1;
@@ -84,7 +167,7 @@
   font-family: "Signika", sans-serif;
   font-size: 15px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.92);
   text-shadow: 0 0 4px #000;
   pointer-events: none;
   z-index: 3;
@@ -103,12 +186,12 @@
 }
 
 /* =========================================
-   PLACA DE RODADA (TURN / RODADA)
+   PLACA DE RODADA
    ========================================= */
 .fu-octo-round-banner {
   position: absolute;
   top: 2px;
-  left: 64px;
+  left: 68px;
   display: flex;
   align-items: baseline;
   gap: 6px;
