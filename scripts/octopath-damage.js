@@ -2,20 +2,20 @@ class FUOctopathDamage {
   static activePopups = new Set();
 
   static ELEMENT_MAP = {
-    air:    { key: "air",    iconClass: "fu-air" },
-    wind:   { key: "air",    iconClass: "fu-air" },
-    bolt:   { key: "bolt",   iconClass: "fu-bolt" },
-    lightning: { key: "bolt", iconClass: "fu-bolt" },
-    dark:   { key: "dark",   iconClass: "fu-dark" },
-    earth:  { key: "earth",  iconClass: "fu-earth" },
-    fire:   { key: "fire",   iconClass: "fu-fire" },
-    ice:    { key: "ice",    iconClass: "fu-ice" },
-    light:  { key: "light",  iconClass: "fu-light" },
-    poison: { key: "poison", iconClass: "fu-poison" }
+    air:       { key: "air",    iconClass: "fu-air" },
+    wind:      { key: "air",    iconClass: "fu-air" },
+    bolt:      { key: "bolt",   iconClass: "fu-bolt" },
+    lightning: { key: "bolt",   iconClass: "fu-bolt" },
+    dark:      { key: "dark",   iconClass: "fu-dark" },
+    earth:     { key: "earth",  iconClass: "fu-earth" },
+    fire:      { key: "fire",   iconClass: "fu-fire" },
+    ice:       { key: "ice",    iconClass: "fu-ice" },
+    light:     { key: "light",  iconClass: "fu-light" },
+    poison:    { key: "poison", iconClass: "fu-poison" }
   };
 
   /**
-   * Suprime os números flutuantes nativos do Foundry (-16 HP, +10 HP, etc.)
+   * Suprime os números flutuantes nativos do Foundry (-16 HP, +36 HP, etc.)
    * sem afetar notificações de status (ex: +(Crise), +Abalado).
    */
   static patchNativeScrollingText() {
@@ -73,7 +73,7 @@ class FUOctopathDamage {
   }
 
   /**
-   * Analisa a mensagem criada pelo botão "Aplicar Dano" do projectfu
+   * Analisa mensagens de dano aplicado ou recuperação de PV do projectfu
    */
   static parseDamageMessage(message) {
     if (!message?.content) return null;
@@ -83,17 +83,52 @@ class FUOctopathDamage {
 
     const fuFlags = message.flags?.projectfu ?? {};
 
-    // Ignora o card de rolagem de ataque (que possui Check ou o botão "Aplicar Dano")
+    // Ignora cards de rolagem/habilidade (que possuem Check ou botões de ação inicial)
     if (fuFlags.Check) return null;
 
     const wrapper = document.createElement("div");
     wrapper.innerHTML = message.content;
-    if (wrapper.querySelector('[data-action="applyDamage"], .apply-damage')) return null;
+    if (
+      wrapper.querySelector(
+        '[data-action="applyDamage"], .apply-damage, [data-action="updateResource"], [data-action="applyResourceLoss"]'
+      )
+    ) {
+      return null;
+    }
 
     const rawText = (wrapper.textContent || "").replace(/\s+/g, " ").trim();
     const flavor = String(message.flavor ?? "").trim();
     const combinedInfo = `${flavor} ${rawText}`;
 
+    // =====================================================
+    // 0. CURA DE PV (Recuperação de PV -> +XYZ em verde)
+    // =====================================================
+    const healRevertBtn = wrapper.querySelector('[data-action="revertResourceGain"][data-resource="hp"]');
+    const isHpRecoveryFlavor = /recupera[çc][ãa]o\s+de\s+pv|hp\s+recovery/i.test(flavor);
+    const isHpRecoveryText =
+      Boolean(fuFlags.ResourceGain) && /recuperou\s+\d+\s*(HP|Pontos de Vida)/i.test(rawText);
+
+    if (healRevertBtn || isHpRecoveryFlavor || isHpRecoveryText) {
+      const btnAmount = healRevertBtn ? Math.abs(parseInt(healRevertBtn.dataset.amount ?? "0", 10)) : 0;
+      const textMatch = rawText.match(/(\d+)\s*(HP|Pontos de Vida)/i);
+      const textAmount = textMatch ? parseInt(textMatch[1], 10) : 0;
+      const healAmount = btnAmount || textAmount;
+
+      if (healAmount > 0) {
+        return {
+          type: "heal",
+          label: "",
+          valueText: `+${healAmount}`,
+          element: null,
+          sparkles: true
+        };
+      }
+      return null;
+    }
+
+    // =====================================================
+    // CÁLCULO DE DANO / ABSORÇÃO / IMUNIDADE
+    // =====================================================
     const revertBtn = wrapper.querySelector('[data-action="revertDamage"]');
     const revertAmount = revertBtn ? Math.abs(parseInt(revertBtn.dataset.amount ?? "0", 10)) : 0;
     const hpMatch = rawText.match(/(\d+)\s*HP/i);
@@ -110,7 +145,8 @@ class FUOctopathDamage {
         type: "absorb",
         label: "ABSORÇÃO",
         valueText: `+${amount || 0}`,
-        element
+        element,
+        sparkles: true
       };
     }
 
@@ -120,7 +156,8 @@ class FUOctopathDamage {
         type: "immune",
         label: "IMUNE",
         valueText: "000",
-        element
+        element,
+        sparkles: false
       };
     }
 
@@ -132,22 +169,26 @@ class FUOctopathDamage {
 
     if (!isDamageApplied) return null;
 
-    // 3. Vulnerável (XYZ + FRACO)
+    const formattedDamage = amount > 0 ? `-${amount}` : "0";
+
+    // 3. Vulnerável (-XYZ + FRACO)
     if (/vulnerabilidade|vulner[áa]vel|vulnerability|vulnerable/i.test(combinedInfo)) {
       return {
         type: "weak",
         label: "FRACO",
-        valueText: String(amount),
-        element
+        valueText: formattedDamage,
+        element,
+        sparkles: false
       };
     }
 
-    // 4. Dano Normal ou Resistente
+    // 4. Dano Normal ou Resistente (-XYZ)
     return {
       type: "damage",
       label: "",
-      valueText: String(amount),
-      element
+      valueText: formattedDamage,
+      element,
+      sparkles: false
     };
   }
 
@@ -193,7 +234,6 @@ class FUOctopathDamage {
       container.classList.add(`fu-octo-elem-${data.element.key}`);
     }
 
-    // Pequeno deslocamento caso vários ataques acertem em sequência
     const jitterX = (Math.random() - 0.5) * 12;
     const jitterY = (Math.random() - 0.5) * 24;
 
@@ -208,16 +248,29 @@ class FUOctopathDamage {
       `;
     }
 
+    const healSparklesHTML = data.sparkles
+      ? `
+        <div class="fu-octo-heal-sparkles" aria-hidden="true">
+          <span class="fu-octo-hsparkle s1">✦</span>
+          <span class="fu-octo-hsparkle s2">✧</span>
+          <span class="fu-octo-hsparkle s3">✦</span>
+          <span class="fu-octo-hsparkle s4">✧</span>
+        </div>
+      `
+      : "";
+
     const chars = Array.from(data.valueText);
     const digitsHTML = chars
-      .map(
-        (char, idx) => `
-          <span class="fu-octo-dmg-digit" style="--char-idx: ${idx};">
+      .map((char, idx) => {
+        const isSign = char === "-" || char === "+";
+        const signClass = isSign ? "fu-octo-dmg-sign" : "";
+        return `
+          <span class="fu-octo-dmg-digit ${signClass}" style="--char-idx: ${idx};">
             <span class="fu-octo-dmg-outline" aria-hidden="true">${char}</span>
             <span class="fu-octo-dmg-fill">${char}</span>
           </span>
-        `
-      )
+        `;
+      })
       .join("");
 
     const elementIconHTML = data.element
@@ -231,6 +284,7 @@ class FUOctopathDamage {
     container.innerHTML = `
       ${labelHTML}
       <div class="fu-octo-dmg-digits">
+        ${healSparklesHTML}
         ${digitsHTML}
         ${elementIconHTML}
       </div>
@@ -259,7 +313,6 @@ class FUOctopathDamage {
   static updatePosition(entry) {
     if (!entry?.token || entry.token.destroyed || !canvas?.stage) return;
 
-    // Posiciona à direita do token, na altura do tronco/ombro
     const worldPoint = {
       x: entry.token.x + entry.token.w * 1.08,
       y: entry.token.y + entry.token.h * 0.38
