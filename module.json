@@ -17,10 +17,10 @@
     ]
   },
   "esmodules": [
-    "octopath-initiative.js"
+    "scripts/octopath-initiative.js"
   ],
   "styles": [
-    "octopath-initiative.css"
+    "styles/octopath-initiative.css"
   ],
   "url": "https://github.com/GabriellSilveira/fu-octopath-initiative",
   "manifest": "https://raw.githubusercontent.com/GabriellSilveira/fu-octopath-initiative/main/module.json",
