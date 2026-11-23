@@ -61,8 +61,17 @@
   border-color: rgba(248, 113, 113, 0.55);
 }
 
+.fu-octo-hero.fu-octo-neutral {
+  border-color: rgba(148, 163, 184, 0.55);
+  cursor: default;
+}
+
 .fu-octo-hero:hover {
   transform: rotate(45deg) scale(1.06);
+}
+
+.fu-octo-hero.fu-octo-neutral:hover {
+  transform: rotate(45deg);
 }
 
 /* Camadas de feixe neon orbitando ao redor do losango em evidência */
@@ -128,6 +137,24 @@
   box-shadow: 0 0 18px rgba(248, 113, 113, 0.55);
 }
 
+/* Neon Cinza/Prateado (Ninguém no turno) */
+.fu-octo-hero.fu-octo-neutral.fu-octo-is-acting::before,
+.fu-octo-hero.fu-octo-neutral.fu-octo-is-acting::after {
+  background: conic-gradient(
+    from var(--fu-neon-angle),
+    rgba(71, 85, 105, 0.15) 0%,
+    rgba(148, 163, 184, 0.35) 45%,
+    #64748b 68%,
+    #cbd5e1 86%,
+    #f8fafc 95%,
+    #cbd5e1 100%
+  );
+}
+
+.fu-octo-hero.fu-octo-neutral.fu-octo-is-acting {
+  box-shadow: 0 0 16px rgba(148, 163, 184, 0.45);
+}
+
 /* Moldura interna do retrato dentro do losango principal */
 .fu-octo-hero .fu-octo-portrait-wrap {
   position: absolute;
@@ -136,6 +163,20 @@
   height: auto;
   background: #0d1219;
   z-index: 2;
+}
+
+/* Símbolo de ? quando ninguém está com o turno ativo */
+.fu-octo-unknown-icon {
+  font-family: "Signika", sans-serif;
+  font-size: 30px;
+  font-weight: 800;
+  color: #cbd5e1;
+  line-height: 1;
+  transform: rotate(-45deg);
+  text-shadow:
+    0 0 8px rgba(148, 163, 184, 0.55),
+    0 2px 4px #000;
+  pointer-events: none;
 }
 
 /* Animação de entrada ao trocar de iniciativa */
