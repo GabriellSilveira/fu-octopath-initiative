@@ -134,13 +134,9 @@ class FUOctopathInitiative {
         return aMatch - bMatch;
       });
 
-      let heroCombatant = actingCombatant;
-      if (!heroCombatant) {
-        heroCombatant = currentRoundQueue.shift() ?? combatants[0];
-      }
-
-      if (heroCombatant.id !== this.lastHeroId) {
-        this.lastHeroId = heroCombatant.id;
+      const currentHeroKey = actingCombatant ? actingCombatant.id : "__none__";
+      if (currentHeroKey !== this.lastHeroId) {
+        this.lastHeroId = currentHeroKey;
         this.animateHeroSwap = true;
       }
 
@@ -152,14 +148,43 @@ class FUOctopathInitiative {
         }
       }
 
-      const heroIsAlly = this.isAlly(heroCombatant);
-      const heroSideClass = heroIsAlly ? "fu-octo-ally" : "fu-octo-enemy";
-      const heroStateClass = isActivelyPlaying ? "fu-octo-is-acting" : "fu-octo-standby";
-      const heroHiddenClass = heroCombatant.hidden ? "fu-octo-secret" : "";
       const heroAnimClass = this.animateHeroSwap ? "fu-octo-hero-swap" : "";
       this.animateHeroSwap = false;
 
       const escape = (str) => foundry.utils.escapeHTML(String(str ?? ""));
+
+      let heroHTML = "";
+      if (actingCombatant) {
+        const heroIsAlly = this.isAlly(actingCombatant);
+        const heroSideClass = heroIsAlly ? "fu-octo-ally" : "fu-octo-enemy";
+        const heroHiddenClass = actingCombatant.hidden ? "fu-octo-secret" : "";
+        const heroSafeName = escape(actingCombatant.name);
+
+        heroHTML = `
+          <div class="fu-octo-hero ${heroSideClass} fu-octo-is-acting ${heroHiddenClass} ${heroAnimClass}"
+               data-combatant-id="${actingCombatant.id}"
+               data-is-hero="true"
+               title="${heroSafeName}">
+            <div class="fu-octo-portrait-wrap">
+              <img src="${this.getPortrait(actingCombatant)}" alt="${heroSafeName}" />
+            </div>
+            <span class="fu-octo-chevron fu-octo-chev-left">‹</span>
+            <span class="fu-octo-chevron fu-octo-chev-right">›</span>
+            <span class="fu-octo-tooltip">${heroSafeName}</span>
+          </div>
+        `;
+      } else {
+        heroHTML = `
+          <div class="fu-octo-hero fu-octo-neutral fu-octo-is-acting ${heroAnimClass}"
+               title="Aguardando turno">
+            <div class="fu-octo-portrait-wrap">
+              <span class="fu-octo-unknown-icon">?</span>
+            </div>
+            <span class="fu-octo-chevron fu-octo-chev-left">‹</span>
+            <span class="fu-octo-chevron fu-octo-chev-right">›</span>
+          </div>
+        `;
+      }
 
       const renderDiamond = (c, index) => {
         const sideClass = this.isAlly(c) ? "fu-octo-ally" : "fu-octo-enemy";
@@ -178,21 +203,9 @@ class FUOctopathInitiative {
         `;
       };
 
-      const heroSafeName = escape(heroCombatant.name);
-
       this.container.innerHTML = `
         <div class="fu-octo-wrapper">
-          <div class="fu-octo-hero ${heroSideClass} ${heroStateClass} ${heroHiddenClass} ${heroAnimClass}"
-               data-combatant-id="${heroCombatant.id}"
-               data-is-hero="true"
-               title="${heroSafeName}">
-            <div class="fu-octo-portrait-wrap">
-              <img src="${this.getPortrait(heroCombatant)}" alt="${heroSafeName}" />
-            </div>
-            <span class="fu-octo-chevron fu-octo-chev-left">‹</span>
-            <span class="fu-octo-chevron fu-octo-chev-right">›</span>
-            <span class="fu-octo-tooltip">${heroSafeName}</span>
-          </div>
+          ${heroHTML}
 
           <div class="fu-octo-round-banner">
             <span class="fu-octo-round-label">Rodada</span>
@@ -229,6 +242,7 @@ class FUOctopathInitiative {
     const nodes = this.container.querySelectorAll("[data-combatant-id]");
     nodes.forEach((el) => {
       const combatantId = el.dataset.combatantId;
+      if (!combatantId) return;
       const isHero = el.dataset.isHero === "true";
 
       el.addEventListener("pointerenter", () => {
