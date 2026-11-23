@@ -2,36 +2,69 @@ class FUOctopathDamage {
   static activePopups = new Set();
 
   /**
+   * Suprime os números flutuantes nativos do Foundry (-16 HP, +10 HP, etc.)
+   * sem afetar notificações de status (ex: +Abalado, -Fraco).
+   */
+  static patchNativeScrollingText() {
+    if (!canvas?.interface?.createScrollingText) return;
+    if (canvas.interface.createScrollingText._fuOctoPatched) return;
+
+    const original = canvas.interface.createScrollingText.bind(canvas.interface);
+    const wrapped = function (origin, content, options = {}) {
+      const text = String(content ?? "").trim();
+      if (/^[+-]?\d+\s*(HP|PV|MP|PM|IP|PI)?$/i.test(text)) {
+        return Promise.resolve(null);
+      }
+      return original(origin, content, options);
+    };
+
+    wrapped._fuOctoPatched = true;
+    canvas.interface.createScrollingText = wrapped;
+  }
+
+  /**
    * Analisa a mensagem criada pelo botão "Aplicar Dano" do projectfu
    */
   static parseDamageMessage(message) {
     if (!message?.content) return null;
 
-    // Ignora mensagens antigas caso algum hook dispare fora de hora
+    // Ignora mensagens antigas ao recarregar a página
     if (message.timestamp && Date.now() - message.timestamp > 15000) return null;
+
+    const fuFlags = message.flags?.projectfu ?? {};
+
+    // Ignora o card de rolagem de ataque (que possui Check ou o botão "Aplicar Dano")
+    if (fuFlags.Check) return null;
 
     const wrapper = document.createElement("div");
     wrapper.innerHTML = message.content;
-    const rawText = (wrapper.textContent || "").replace(/\s+/g, " ").trim();
-    if (!rawText) return null;
-
-    // Ignora o card de rolagem de ataque (que ainda contém o botão "Aplicar Dano")
     if (wrapper.querySelector('[data-action="applyDamage"], .apply-damage')) return null;
 
+    const rawText = (wrapper.textContent || "").replace(/\s+/g, " ").trim();
+    const flavor = String(message.flavor ?? "").trim();
+    const combinedInfo = `${flavor} ${rawText}`;
+
+    const revertBtn = wrapper.querySelector('[data-action="revertDamage"]');
+    const revertAmount = revertBtn ? Math.abs(parseInt(revertBtn.dataset.amount ?? "0", 10)) : 0;
     const hpMatch = rawText.match(/(\d+)\s*HP/i);
-    const amount = hpMatch ? parseInt(hpMatch[1], 10) : 0;
+    const parsedHp = hpMatch ? parseInt(hpMatch[1], 10) : 0;
+    const flagDamage = typeof fuFlags.Damage === "number" ? Math.abs(fuFlags.Damage) : 0;
+    const flagHealing = typeof fuFlags.Healing === "number" ? Math.abs(fuFlags.Healing) : 0;
+
+    const amount = flagDamage || flagHealing || revertAmount || parsedHp;
 
     // 1. Absorção (Verde: +XYZ + ABSORÇÃO)
-    if (/absor[çc][ãa]o|absorveu|absorbed|absorption/i.test(rawText) && amount > 0) {
+    if (/absor[çc][ãa]o|absorveu|absorbed|absorption/i.test(combinedInfo)) {
+      const healValue = amount || 0;
       return {
         type: "absorb",
         label: "ABSORÇÃO",
-        valueText: `+${amount}`
+        valueText: `+${healValue}`
       };
     }
 
     // 2. Imunidade (Azul: 000 + IMUNE)
-    if (/imunidade|imune\s+a|immunity|immune\s+to/i.test(rawText)) {
+    if (/imunidade|imune|immunity|immune/i.test(combinedInfo)) {
       return {
         type: "immune",
         label: "IMUNE",
@@ -39,18 +72,20 @@ class FUOctopathDamage {
       };
     }
 
-    // Verifica se houve perda de HP aplicada
-    const lostHpMatch = rawText.match(/(?:perdeu|sofreu|lost|took|suffered)\s+(\d+)\s*HP/i);
-    if (!lostHpMatch) return null;
+    // Confirma que é realmente uma mensagem de dano aplicado
+    const isDamageApplied =
+      typeof fuFlags.Damage === "number" ||
+      Boolean(revertBtn) ||
+      /(?:perdeu|sofreu|lost|took|suffered)\s+\d+\s*HP/i.test(rawText);
 
-    const damageValue = parseInt(lostHpMatch[1], 10);
+    if (!isDamageApplied) return null;
 
     // 3. Vulnerável (Vermelho: XYZ + FRACO)
-    if (/vulnerabilidade|vulner[áa]vel|vulnerability|vulnerable/i.test(rawText)) {
+    if (/vulnerabilidade|vulner[áa]vel|vulnerability|vulnerable/i.test(combinedInfo)) {
       return {
         type: "weak",
         label: "FRACO",
-        valueText: String(damageValue)
+        valueText: String(amount)
       };
     }
 
@@ -58,7 +93,7 @@ class FUOctopathDamage {
     return {
       type: "damage",
       label: "",
-      valueText: String(damageValue)
+      valueText: String(amount)
     };
   }
 
@@ -92,7 +127,7 @@ class FUOctopathDamage {
   }
 
   /**
-   * Cria e anima o popup flutuante sobre o token
+   * Cria e anima o popup flutuante à direita do token
    */
   static spawnPopup(token, data) {
     if (!canvas?.stage) return;
@@ -100,9 +135,9 @@ class FUOctopathDamage {
     const container = document.createElement("div");
     container.classList.add("fu-octo-dmg-popup", `fu-octo-dmg-${data.type}`);
 
-    // Pequeno deslocamento aleatório para múltiplos hits seguidos não se sobreporem
-    const jitterX = (Math.random() - 0.5) * 28;
-    const jitterY = (Math.random() - 0.5) * 14;
+    // Pequeno deslocamento vertical caso vários ataques acertem em sequência
+    const jitterX = (Math.random() - 0.5) * 12;
+    const jitterY = (Math.random() - 0.5) * 24;
 
     let labelHTML = "";
     if (data.label) {
@@ -119,9 +154,10 @@ class FUOctopathDamage {
     const digitsHTML = chars
       .map(
         (char, idx) => `
-          <span class="fu-octo-dmg-char"
-                data-char="${char}"
-                style="--char-idx: ${idx};">${char}</span>
+          <span class="fu-octo-dmg-digit" style="--char-idx: ${idx};">
+            <span class="fu-octo-dmg-outline" aria-hidden="true">${char}</span>
+            <span class="fu-octo-dmg-fill">${char}</span>
+          </span>
         `
       )
       .join("");
@@ -145,8 +181,7 @@ class FUOctopathDamage {
     this.activePopups.add(entry);
     this.updatePosition(entry);
 
-    // Tempo total da animação em onda (1.65s + atraso dos dígitos)
-    const totalDuration = 1650 + chars.length * 70;
+    const totalDuration = 1700 + chars.length * 70;
     setTimeout(() => {
       container.remove();
       this.activePopups.delete(entry);
@@ -156,10 +191,10 @@ class FUOctopathDamage {
   static updatePosition(entry) {
     if (!entry?.token || entry.token.destroyed || !canvas?.stage) return;
 
-    // Posiciona na parte superior/central do token atingido
+    // Posiciona à direita do token, na altura do tronco/ombro
     const worldPoint = {
-      x: entry.token.x + entry.token.w * 0.52,
-      y: entry.token.y + entry.token.h * 0.22
+      x: entry.token.x + entry.token.w * 1.08,
+      y: entry.token.y + entry.token.h * 0.38
     };
     const screenPos = canvas.stage.worldTransform.apply(worldPoint);
 
@@ -173,6 +208,9 @@ class FUOctopathDamage {
     }
   }
 }
+
+Hooks.once("ready", () => FUOctopathDamage.patchNativeScrollingText());
+Hooks.on("canvasReady", () => FUOctopathDamage.patchNativeScrollingText());
 
 Hooks.on("createChatMessage", (message) => {
   const parsed = FUOctopathDamage.parseDamageMessage(message);
