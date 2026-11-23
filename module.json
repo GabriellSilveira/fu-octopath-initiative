@@ -1,8 +1,8 @@
 {
   "id": "fu-octopath-initiative",
-  "title": "Fabula Ultima - Octopath Initiative Carousel",
-  "description": "Carrossel de iniciativa animado inspirado em Octopath Traveler para o sistema Fabula Ultima.",
-  "version": "1.5.0",
+  "title": "Fabula Ultima - Octopath Initiative & Damage HUD",
+  "description": "Carrossel de iniciativa animado e números de dano flutuantes inspirados em Octopath Traveler para Fabula Ultima.",
+  "version": "2.0.0",
   "compatibility": {
     "minimum": "11",
     "verified": "13"
@@ -17,10 +17,12 @@
     ]
   },
   "esmodules": [
-    "scripts/octopath-initiative.js"
+    "scripts/octopath-initiative.js",
+    "scripts/octopath-damage.js"
   ],
   "styles": [
-    "styles/octopath-initiative.css"
+    "styles/octopath-initiative.css",
+    "styles/octopath-damage.css"
   ],
   "url": "https://github.com/GabriellSilveira/fu-octopath-initiative",
   "manifest": "https://raw.githubusercontent.com/GabriellSilveira/fu-octopath-initiative/main/module.json",
