@@ -1,9 +1,7 @@
 class FUOctopathInitiative {
   static container = null;
   static lastHeroId = null;
-  static lastRound = null;
   static animateHeroSwap = false;
-  static knownRemainingTurns = new Map();
   static observedMaxTurns = new Map();
 
   static init() {
@@ -20,101 +18,58 @@ class FUOctopathInitiative {
   }
 
   static getTrackerRow(combatantId) {
-    return document.querySelector(
-      `#combat .combat-tracker .combatant[data-combatant-id="${combatantId}"], ` +
-      `#combat-popout .combat-tracker .combatant[data-combatant-id="${combatantId}"], ` +
-      `.combat-tracker .combatant[data-combatant-id="${combatantId}"], ` +
-      `#combat-tracker .combatant[data-combatant-id="${combatantId}"]`
-    );
+    return document.querySelector(`[data-combatant-id="${combatantId}"]`);
   }
 
   /**
-   * Total de ações por rodada (1 para personagens normais, 2+ para Chefes/Campeões)
+   * Obtém o total de ações por rodada do combatente (1 para aliados, 2+ para Elite/Campeão)
    */
   static getMaxTurns(combatant) {
     const observed = this.observedMaxTurns.get(combatant.id);
     if (typeof observed === "number" && observed > 0) return observed;
 
     const actor = combatant.actor;
+    const rank = actor?.system?.rank;
+
+    if (rank === "elite" || rank?.value === "elite") return 2;
+    if (rank === "champion" || rank?.value === "champion") {
+      const soldiers = Number(rank?.replacedSoldiers ?? actor?.system?.rankValue ?? 2);
+      return Math.max(2, soldiers);
+    }
+
     const sysTurns = actor?.system?.turns;
     if (typeof sysTurns === "number" && sysTurns > 0) return sysTurns;
     if (typeof sysTurns?.max === "number" && sysTurns.max > 0) return sysTurns.max;
 
-    if (actor?.system?.rank === "champion") {
-      return Math.max(2, Number(actor.system.rankValue ?? 2));
-    }
     return 1;
   }
 
   /**
-   * Identifica quem está com o turno ativo em evidência (ícone ▶)
+   * Calcula quantas ações futuras ainda restam para o combatente na rodada atual
    */
-  static getActingCombatant(combat, combatants) {
-    if (combat.turn !== null && combat.turn !== undefined && combat.combatant) {
-      const current = combatants.find((c) => c.id === combat.combatant.id);
-      if (current) return current;
-    }
+  static getRemainingTurns(combat, combatant) {
+    const roundKey = String(combat.round);
+    const takenMap = combat.getFlag("projectfu", "CombatantsTurnTaken") ?? {};
+    const takenList = Array.isArray(takenMap[roundKey]) ? takenMap[roundKey] : [];
+    const takenCount = takenList.filter((id) => id === combatant.id).length;
 
-    for (const c of combatants) {
-      const row = this.getTrackerRow(c.id);
-      if (row && (row.classList.contains("active") || row.querySelector(".fa-play, .fa-circle-play, .fa-play-circle"))) {
-        return c;
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Lê quantos turnos ainda restam na fila de espera da rodada atual
-   */
-  static getRemainingQueueTurns(combat, combatant, actingCombatantId) {
+    // Se o ícone counter_N estiver visível no tracker, sincroniza o máximo observado
     const row = this.getTrackerRow(combatant.id);
-    const isCurrentlyActing = combatant.id === actingCombatantId;
+    const matIcon = row?.querySelector(".token-initiative .mats-o");
+    const iconText = matIcon?.textContent?.trim() ?? "";
+    const counterMatch = iconText.match(/^counter_(\d+)$/);
 
-    if (row) {
-      // 1. Se já tem check (✓), terminou todas as ações da rodada
-      if (row.querySelector(".fa-check, .fa-circle-check, .fa-check-circle")) {
-        this.knownRemainingTurns.set(combatant.id, 0);
-        return 0;
+    if (counterMatch) {
+      const domRemaining = parseInt(counterMatch[1], 10);
+      const totalObserved = takenCount + domRemaining;
+      if (totalObserved > (this.observedMaxTurns.get(combatant.id) ?? 0)) {
+        this.observedMaxTurns.set(combatant.id, totalObserved);
       }
-
-      // 2. Se está agindo agora (▶), o turno atual já está no Losango Principal;
-      // mantém na fila apenas turnos extras futuros (ex: chefe com 2+ ações)
-      if (isCurrentlyActing || row.querySelector(".fa-play, .fa-circle-play, .fa-play-circle")) {
-        const prev = this.knownRemainingTurns.get(combatant.id) ?? this.getMaxTurns(combatant);
-        return Math.max(0, prev - 1);
-      }
-
-      // 3. Lê o número exibido no círculo à direita (1, 2, 3...)
-      const candidates = row.querySelectorAll("a, button, span, div");
-      for (const el of candidates) {
-        if (el.children.length > 0) continue;
-        const txt = el.textContent?.trim();
-        if (txt && /^\d+$/.test(txt)) {
-          const val = Math.max(0, parseInt(txt, 10));
-          this.knownRemainingTurns.set(combatant.id, val);
-
-          const prevMax = this.observedMaxTurns.get(combatant.id) ?? 1;
-          if (val > prevMax) {
-            this.observedMaxTurns.set(combatant.id, val);
-          }
-          return val;
-        }
-      }
+      return domRemaining;
     }
 
-    // Fallback se a aba do tracker ainda não renderizou
-    if (isCurrentlyActing) {
-      const prev = this.knownRemainingTurns.get(combatant.id) ?? this.getMaxTurns(combatant);
-      return Math.max(0, prev - 1);
-    }
-
-    if (this.knownRemainingTurns.has(combatant.id)) {
-      return this.knownRemainingTurns.get(combatant.id);
-    }
-
-    return this.getMaxTurns(combatant);
+    const maxTurns = this.getMaxTurns(combatant);
+    return Math.max(0, maxTurns - takenCount);
   }
 
   static isAlly(combatant) {
@@ -144,16 +99,8 @@ class FUOctopathInitiative {
     if (!combat) {
       this.container.classList.add("fu-octo-hidden");
       this.lastHeroId = null;
-      this.lastRound = null;
-      this.knownRemainingTurns.clear();
       this.observedMaxTurns.clear();
       return;
-    }
-
-    // Limpa o histórico de turnos restantes ao virar a rodada
-    if (this.lastRound !== combat.round) {
-      this.lastRound = combat.round;
-      this.knownRemainingTurns.clear();
     }
 
     const combatants = combat.combatants.filter((c) => this.isVisibleToUser(c));
@@ -162,42 +109,45 @@ class FUOctopathInitiative {
       return;
     }
 
-    // Identifica quem está em evidência jogando agora (▶)
-    const actingCombatant = this.getActingCombatant(combat, combatants);
+    // 1. Quem está agindo exatamente agora segundo a flag oficial do projectfu
+    const activeId = combat.getFlag("projectfu", "CombatantId") || combat.current?.combatantId || null;
+    const actingCombatant = activeId ? combatants.find((c) => c.id === activeId) ?? null : null;
     const isActivelyPlaying = Boolean(actingCombatant);
 
-    // Monta a fila apenas com quem AINDA NÃO AGIU nesta rodada
+    // 2. Fila de espera da rodada atual (apenas quem ainda tem turnos futuros > 0)
     const currentRoundQueue = [];
     for (const c of combatants) {
-      const rem = this.getRemainingQueueTurns(combat, c, actingCombatant?.id);
+      const rem = this.getRemainingTurns(combat, c);
       for (let i = 0; i < rem; i++) {
         currentRoundQueue.push(c);
       }
     }
 
-    // Se ninguém clicou para agir ainda (início da rodada), mostra o primeiro disponível em standby
-    const heroCombatant = actingCombatant ?? currentRoundQueue[0] ?? combatants[0];
+    // Ordena priorizando o lado indicado por CurrentTurn (ou oposto a quem está agindo)
+    const currentSide = combat.getFlag("projectfu", "CurrentTurn");
+    const preferAllyFirst = isActivelyPlaying
+      ? !this.isAlly(actingCombatant)
+      : currentSide !== "hostile";
+
+    currentRoundQueue.sort((a, b) => {
+      const aMatch = this.isAlly(a) === preferAllyFirst ? 0 : 1;
+      const bMatch = this.isAlly(b) === preferAllyFirst ? 0 : 1;
+      return aMatch - bMatch;
+    });
+
+    // 3. Define quem ocupa o Losango Principal
+    let heroCombatant = actingCombatant;
+    if (!heroCombatant) {
+      // Entre turnos (ninguém clicou em agir ainda): puxa o primeiro da fila em standby
+      heroCombatant = currentRoundQueue.shift() ?? combatants[0];
+    }
 
     if (heroCombatant.id !== this.lastHeroId) {
       this.lastHeroId = heroCombatant.id;
       this.animateHeroSwap = true;
     }
 
-    // Se está em standby (ninguém com ▶ ainda), remove 1 cópia do heroCombatant da fila de espera para não duplicar
-    if (!isActivelyPlaying) {
-      const idx = currentRoundQueue.findIndex((c) => c.id === heroCombatant.id);
-      if (idx >= 0) currentRoundQueue.splice(idx, 1);
-    }
-
-    // Intercala aliados e inimigos na fila restante da rodada atual
-    const heroIsAlly = this.isAlly(heroCombatant);
-    currentRoundQueue.sort((a, b) => {
-      const aDiffSide = this.isAlly(a) !== heroIsAlly ? 0 : 1;
-      const bDiffSide = this.isAlly(b) !== heroIsAlly ? 0 : 1;
-      return aDiffSide - bDiffSide;
-    });
-
-    // Monta a fila da Próxima Rodada
+    // 4. Fila da Próxima Rodada
     const nextRoundQueue = [];
     for (const c of combatants) {
       const maxT = this.getMaxTurns(c);
@@ -206,139 +156,6 @@ class FUOctopathInitiative {
       }
     }
 
+    const heroIsAlly = this.isAlly(heroCombatant);
     const heroSideClass = heroIsAlly ? "fu-octo-ally" : "fu-octo-enemy";
-    const heroStateClass = isActivelyPlaying ? "fu-octo-is-acting" : "fu-octo-standby";
-    const heroHiddenClass = heroCombatant.hidden ? "fu-octo-secret" : "";
-    const heroAnimClass = this.animateHeroSwap ? "fu-octo-hero-swap" : "";
-    this.animateHeroSwap = false;
-
-    const renderDiamond = (c, index) => {
-      const sideClass = this.isAlly(c) ? "fu-octo-ally" : "fu-octo-enemy";
-      const secretClass = c.hidden ? "fu-octo-secret" : "";
-      const safeName = foundry.utils.escapeHTML(c.name);
-      return `
-        <div class="fu-octo-node ${sideClass} ${secretClass}"
-             data-combatant-id="${c.id}"
-             style="--stagger: ${index};"
-             title="${safeName}">
-          <div class="fu-octo-portrait-wrap">
-            <img src="${this.getPortrait(c)}" alt="${safeName}" />
-          </div>
-          <span class="fu-octo-tooltip">${safeName}</span>
-        </div>
-      `;
-    };
-
-    const heroSafeName = foundry.utils.escapeHTML(heroCombatant.name);
-
-    this.container.innerHTML = `
-      <div class="fu-octo-wrapper">
-        <!-- Losango Principal (Combatente em Evidência) -->
-        <div class="fu-octo-hero ${heroSideClass} ${heroStateClass} ${heroHiddenClass} ${heroAnimClass}"
-             data-combatant-id="${heroCombatant.id}"
-             title="${heroSafeName}">
-          <div class="fu-octo-portrait-wrap">
-            <img src="${this.getPortrait(heroCombatant)}" alt="${heroSafeName}" />
-          </div>
-          <span class="fu-octo-chevron fu-octo-chev-left">‹</span>
-          <span class="fu-octo-chevron fu-octo-chev-right">›</span>
-          <span class="fu-octo-tooltip">${heroSafeName}</span>
-        </div>
-
-        <!-- Placa de Rodada -->
-        <div class="fu-octo-round-banner">
-          <span class="fu-octo-round-label">Rodada</span>
-          <span class="fu-octo-round-num">${combat.round}</span>
-        </div>
-
-        <!-- Trilho Horizontal -->
-        <div class="fu-octo-track">
-          <div class="fu-octo-track-line"></div>
-
-          <!-- Fila da Rodada Atual (Apenas quem ainda vai agir) -->
-          <div class="fu-octo-queue fu-octo-current-queue">
-            ${currentRoundQueue.map((c, idx) => renderDiamond(c, idx)).join("")}
-          </div>
-
-          <!-- Separador e Fila da Próxima Rodada -->
-          <div class="fu-octo-next-section">
-            <div class="fu-octo-next-label">Próxima Rodada</div>
-            <div class="fu-octo-queue fu-octo-next-queue">
-              ${nextRoundQueue.map((c, idx) => renderDiamond(c, idx)).join("")}
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    this.container.classList.remove("fu-octo-hidden");
-    this.bindEvents();
-  }
-
-  static bindEvents() {
-    if (!this.container) return;
-
-    const nodes = this.container.querySelectorAll("[data-combatant-id]");
-    nodes.forEach((el) => {
-      const combatantId = el.dataset.combatantId;
-
-      el.addEventListener("pointerenter", () => {
-        const combatant = game.combat?.combatants.get(combatantId);
-        const token = combatant?.token?.object;
-        if (token?.visible) {
-          token._onHoverIn(new Event("pointerover"));
-        }
-      });
-
-      el.addEventListener("pointerleave", () => {
-        const combatant = game.combat?.combatants.get(combatantId);
-        const token = combatant?.token?.object;
-        if (token?.visible) {
-          token._onHoverOut(new Event("pointerout"));
-        }
-      });
-
-      el.addEventListener("click", async () => {
-        const combat = this.getCombat();
-        const combatant = combat?.combatants.get(combatantId);
-        if (!combat || !combatant) return;
-
-        if (!game.user.isGM && !combatant.isOwner) return;
-
-        const row = this.getTrackerRow(combatantId);
-        if (row) {
-          // Procura especificamente o botão de turno à direita (evitando os botões de ocultar/derrotar/alvo)
-          const turnBtn =
-            row.querySelector('[data-action="takeTurn"], [data-action="startTurn"], [data-action="endTurn"]') ||
-            Array.from(row.querySelectorAll("a, button")).find((btn) => {
-              const txt = btn.textContent?.trim();
-              return (txt && /^\d+$/.test(txt)) || btn.querySelector(".fa-play, .fa-circle-play");
-            });
-
-          if (turnBtn) {
-            turnBtn.click();
-            return;
-          }
-        }
-
-        const idx = combat.turns.findIndex((t) => t.id === combatantId);
-        if (idx >= 0 && game.user.isGM) {
-          await combat.update({ turn: idx });
-        }
-      });
-    });
-  }
-}
-
-Hooks.once("ready", () => {
-  FUOctopathInitiative.init();
-  FUOctopathInitiative.render();
-});
-
-Hooks.on("combatStart", () => FUOctopathInitiative.render());
-Hooks.on("updateCombat", () => setTimeout(() => FUOctopathInitiative.render(), 30));
-Hooks.on("updateCombatant", () => setTimeout(() => FUOctopathInitiative.render(), 30));
-Hooks.on("createCombatant", () => setTimeout(() => FUOctopathInitiative.render(), 30));
-Hooks.on("deleteCombatant", () => setTimeout(() => FUOctopathInitiative.render(), 30));
-Hooks.on("deleteCombat", () => FUOctopathInitiative.render());
-Hooks.on("renderCombatTracker", () => FUOctopathInitiative.render());
+    const heroStateClass = isActively
