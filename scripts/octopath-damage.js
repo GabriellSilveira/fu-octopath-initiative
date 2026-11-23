@@ -1,9 +1,22 @@
 class FUOctopathDamage {
   static activePopups = new Set();
 
+  static ELEMENT_MAP = {
+    air:    { key: "air",    iconClass: "fu-air" },
+    wind:   { key: "air",    iconClass: "fu-air" },
+    bolt:   { key: "bolt",   iconClass: "fu-bolt" },
+    lightning: { key: "bolt", iconClass: "fu-bolt" },
+    dark:   { key: "dark",   iconClass: "fu-dark" },
+    earth:  { key: "earth",  iconClass: "fu-earth" },
+    fire:   { key: "fire",   iconClass: "fu-fire" },
+    ice:    { key: "ice",    iconClass: "fu-ice" },
+    light:  { key: "light",  iconClass: "fu-light" },
+    poison: { key: "poison", iconClass: "fu-poison" }
+  };
+
   /**
    * Suprime os números flutuantes nativos do Foundry (-16 HP, +10 HP, etc.)
-   * sem afetar notificações de status (ex: +Abalado, -Fraco).
+   * sem afetar notificações de status (ex: +(Crise), +Abalado).
    */
   static patchNativeScrollingText() {
     if (!canvas?.interface?.createScrollingText) return;
@@ -20,6 +33,43 @@ class FUOctopathDamage {
 
     wrapped._fuOctoPatched = true;
     canvas.interface.createScrollingText = wrapped;
+  }
+
+  /**
+   * Identifica se o dano aplicado pertence a algum dos 8 elementos de Fabula Ultima
+   */
+  static detectElement(wrapper) {
+    const inlineDmg = wrapper.querySelector(".inline-damage");
+    const iconEl = inlineDmg?.querySelector("i") ?? wrapper.querySelector("i[class*='fu-']");
+
+    if (iconEl) {
+      for (const cls of iconEl.classList) {
+        if (cls === "fu-icon" || cls.startsWith("fu-icon--")) continue;
+        if (cls === "fu-physical") return null;
+
+        const slug = cls.replace(/^fu-/, "").toLowerCase();
+        if (this.ELEMENT_MAP[slug]) {
+          return {
+            key: this.ELEMENT_MAP[slug].key,
+            iconClass: cls
+          };
+        }
+      }
+    }
+
+    const typeText = (inlineDmg?.textContent || "").trim().toLowerCase();
+    if (!typeText || /f[íi]sico|physical/.test(typeText)) return null;
+
+    if (/\bar\b|wind|air/.test(typeText)) return this.ELEMENT_MAP.air;
+    if (/raio|bolt|lightning/.test(typeText)) return this.ELEMENT_MAP.bolt;
+    if (/trevas|dark/.test(typeText)) return this.ELEMENT_MAP.dark;
+    if (/terra|earth/.test(typeText)) return this.ELEMENT_MAP.earth;
+    if (/fogo|fire/.test(typeText)) return this.ELEMENT_MAP.fire;
+    if (/gelo|ice/.test(typeText)) return this.ELEMENT_MAP.ice;
+    if (/luz|light/.test(typeText)) return this.ELEMENT_MAP.light;
+    if (/veneno|poison/.test(typeText)) return this.ELEMENT_MAP.poison;
+
+    return null;
   }
 
   /**
@@ -52,14 +102,15 @@ class FUOctopathDamage {
     const flagHealing = typeof fuFlags.Healing === "number" ? Math.abs(fuFlags.Healing) : 0;
 
     const amount = flagDamage || flagHealing || revertAmount || parsedHp;
+    const element = this.detectElement(wrapper);
 
     // 1. Absorção (Verde: +XYZ + ABSORÇÃO)
     if (/absor[çc][ãa]o|absorveu|absorbed|absorption/i.test(combinedInfo)) {
-      const healValue = amount || 0;
       return {
         type: "absorb",
         label: "ABSORÇÃO",
-        valueText: `+${healValue}`
+        valueText: `+${amount || 0}`,
+        element
       };
     }
 
@@ -68,7 +119,8 @@ class FUOctopathDamage {
       return {
         type: "immune",
         label: "IMUNE",
-        valueText: "000"
+        valueText: "000",
+        element
       };
     }
 
@@ -80,20 +132,22 @@ class FUOctopathDamage {
 
     if (!isDamageApplied) return null;
 
-    // 3. Vulnerável (Vermelho: XYZ + FRACO)
+    // 3. Vulnerável (XYZ + FRACO)
     if (/vulnerabilidade|vulner[áa]vel|vulnerability|vulnerable/i.test(combinedInfo)) {
       return {
         type: "weak",
         label: "FRACO",
-        valueText: String(amount)
+        valueText: String(amount),
+        element
       };
     }
 
-    // 4. Dano Normal ou Resistente (Vermelho: XYZ)
+    // 4. Dano Normal ou Resistente
     return {
       type: "damage",
       label: "",
-      valueText: String(amount)
+      valueText: String(amount),
+      element
     };
   }
 
@@ -135,7 +189,11 @@ class FUOctopathDamage {
     const container = document.createElement("div");
     container.classList.add("fu-octo-dmg-popup", `fu-octo-dmg-${data.type}`);
 
-    // Pequeno deslocamento vertical caso vários ataques acertem em sequência
+    if (data.element) {
+      container.classList.add(`fu-octo-elem-${data.element.key}`);
+    }
+
+    // Pequeno deslocamento caso vários ataques acertem em sequência
     const jitterX = (Math.random() - 0.5) * 12;
     const jitterY = (Math.random() - 0.5) * 24;
 
@@ -162,10 +220,19 @@ class FUOctopathDamage {
       )
       .join("");
 
+    const elementIconHTML = data.element
+      ? `
+        <span class="fu-octo-dmg-elem-wrap" style="--char-idx: ${chars.length};">
+          <i class="fu-icon fu-octo-dmg-elem-icon ${data.element.iconClass}" aria-hidden="true"></i>
+        </span>
+      `
+      : "";
+
     container.innerHTML = `
       ${labelHTML}
       <div class="fu-octo-dmg-digits">
         ${digitsHTML}
+        ${elementIconHTML}
       </div>
     `;
 
@@ -181,7 +248,8 @@ class FUOctopathDamage {
     this.activePopups.add(entry);
     this.updatePosition(entry);
 
-    const totalDuration = 1700 + chars.length * 70;
+    const totalSteps = chars.length + (data.element ? 1 : 0);
+    const totalDuration = 2300 + totalSteps * 65;
     setTimeout(() => {
       container.remove();
       this.activePopups.delete(entry);
