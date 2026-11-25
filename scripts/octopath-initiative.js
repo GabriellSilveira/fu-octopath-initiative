@@ -3,6 +3,7 @@ class FUOctopathInitiative {
   static lastHeroId = null;
   static animateHeroSwap = false;
   static observedMaxTurns = new Map();
+  static collapseLevel = 0; // 0 = completo | 1 = sem próxima rodada | 2 = apenas destaque
 
   static init() {
     if (this.container && document.body.contains(this.container)) return;
@@ -90,6 +91,17 @@ class FUOctopathInitiative {
     );
   }
 
+  static applyCollapseClasses() {
+    if (!this.container) return;
+    this.container.classList.toggle("fu-octo-collapse-1", this.collapseLevel === 1);
+    this.container.classList.toggle("fu-octo-collapse-2", this.collapseLevel === 2);
+  }
+
+  static cycleCollapse() {
+    this.collapseLevel = (this.collapseLevel + 1) % 3;
+    this.applyCollapseClasses();
+  }
+
   static render() {
     try {
       this.init();
@@ -99,6 +111,8 @@ class FUOctopathInitiative {
         this.container.classList.add("fu-octo-hidden");
         this.lastHeroId = null;
         this.observedMaxTurns.clear();
+        this.collapseLevel = 0;
+        this.applyCollapseClasses();
         return;
       }
 
@@ -164,7 +178,7 @@ class FUOctopathInitiative {
           <div class="fu-octo-hero ${heroSideClass} fu-octo-is-acting ${heroHiddenClass} ${heroAnimClass}"
                data-combatant-id="${actingCombatant.id}"
                data-is-hero="true"
-               title="${heroSafeName}">
+               title="${heroSafeName} (Clique para retrair/expandir barra)">
             <div class="fu-octo-portrait-wrap">
               <img src="${this.getPortrait(actingCombatant)}" alt="${heroSafeName}" />
             </div>
@@ -176,7 +190,8 @@ class FUOctopathInitiative {
       } else {
         heroHTML = `
           <div class="fu-octo-hero fu-octo-neutral fu-octo-is-acting ${heroAnimClass}"
-               title="Aguardando turno">
+               data-is-hero="true"
+               title="Aguardando turno (Clique para retrair/expandir barra)">
             <div class="fu-octo-portrait-wrap">
               <span class="fu-octo-unknown-icon">?</span>
             </div>
@@ -229,6 +244,7 @@ class FUOctopathInitiative {
         </div>
       `;
 
+      this.applyCollapseClasses();
       this.container.classList.remove("fu-octo-hidden");
       this.bindEvents();
     } catch (err) {
@@ -238,6 +254,14 @@ class FUOctopathInitiative {
 
   static bindEvents() {
     if (!this.container) return;
+
+    const heroEl = this.container.querySelector(".fu-octo-hero");
+    if (heroEl) {
+      heroEl.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        this.cycleCollapse();
+      });
+    }
 
     const nodes = this.container.querySelectorAll("[data-combatant-id]");
     nodes.forEach((el) => {
@@ -261,21 +285,20 @@ class FUOctopathInitiative {
         }
       });
 
-      el.addEventListener("click", () => {
-        const combat = this.getCombat();
-        const combatant = combat?.combatants.get(combatantId);
-        if (!combat || !combatant) return;
-        if (!game.user.isGM && !combatant.isOwner) return;
+      if (!isHero) {
+        el.addEventListener("click", () => {
+          const combat = this.getCombat();
+          const combatant = combat?.combatants.get(combatantId);
+          if (!combat || !combatant) return;
+          if (!game.user.isGM && !combatant.isOwner) return;
 
-        const row = this.getTrackerRow(combatantId);
-        if (!row) return;
+          const row = this.getTrackerRow(combatantId);
+          if (!row) return;
 
-        const actionBtn = isHero
-          ? row.querySelector('[data-action="endTurn"], [data-action="takeTurn"]')
-          : row.querySelector('[data-action="takeTurn"]');
-
-        actionBtn?.click();
-      });
+          const actionBtn = row.querySelector('[data-action="takeTurn"]');
+          actionBtn?.click();
+        });
+      }
     });
   }
 }
