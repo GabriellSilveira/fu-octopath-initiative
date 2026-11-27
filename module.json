@@ -2,7 +2,7 @@
   "id": "fu-octopath-initiative",
   "title": "Fabula Ultima - Octopath Initiative & Damage HUD",
   "description": "Carrossel de iniciativa animado e números de dano flutuantes inspirados em Octopath Traveler para Fabula Ultima.",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "compatibility": {
     "minimum": "11",
     "verified": "13"
