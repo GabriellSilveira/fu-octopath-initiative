@@ -91,6 +91,31 @@ class FUOctopathInitiative {
     );
   }
 
+  static isVideoSrc(src) {
+    if (!src) return false;
+    const cleanSrc = String(src).split(/[?#]/)[0];
+    if (typeof VideoHelper !== "undefined" && typeof VideoHelper.hasVideoExtension === "function") {
+      return VideoHelper.hasVideoExtension(cleanSrc);
+    }
+    return /\.(webm|mp4|m4v|ogv)$/i.test(cleanSrc);
+  }
+
+  static renderPortraitMedia(combatant, safeName) {
+    const src = this.getPortrait(combatant);
+    const safeSrc = foundry.utils.escapeHTML(String(src));
+    const rawFallback =
+      combatant.actor?.img && !this.isVideoSrc(combatant.actor.img)
+        ? combatant.actor.img
+        : "icons/svg/mystery-man.svg";
+    const safeFallback = foundry.utils.escapeHTML(String(rawFallback));
+
+    if (this.isVideoSrc(src)) {
+      return `<video src="${safeSrc}" autoplay loop muted playsinline disablepictureinpicture data-fallback="${safeFallback}" onerror="const img=document.createElement('img');img.src=this.dataset.fallback;this.replaceWith(img);"></video>`;
+    }
+
+    return `<img src="${safeSrc}" alt="${safeName}" data-fallback="${safeFallback}" onerror="if(this.src!==this.dataset.fallback){this.src=this.dataset.fallback;}" />`;
+  }
+
   static applyCollapseClasses() {
     if (!this.container) return;
     this.container.classList.toggle("fu-octo-collapse-1", this.collapseLevel === 1);
@@ -180,7 +205,7 @@ class FUOctopathInitiative {
                data-is-hero="true"
                title="${heroSafeName} (Clique para retrair/expandir barra)">
             <div class="fu-octo-portrait-wrap">
-              <img src="${this.getPortrait(actingCombatant)}" alt="${heroSafeName}" />
+              ${this.renderPortraitMedia(actingCombatant, heroSafeName)}
             </div>
             <span class="fu-octo-chevron fu-octo-chev-left">‹</span>
             <span class="fu-octo-chevron fu-octo-chev-right">›</span>
@@ -211,7 +236,7 @@ class FUOctopathInitiative {
                style="--stagger: ${index};"
                title="${safeName}">
             <div class="fu-octo-portrait-wrap">
-              <img src="${this.getPortrait(c)}" alt="${safeName}" />
+              ${this.renderPortraitMedia(c, safeName)}
             </div>
             <span class="fu-octo-tooltip">${safeName}</span>
           </div>
